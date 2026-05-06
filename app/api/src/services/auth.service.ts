@@ -31,7 +31,7 @@ export function createToken(user: AuthUser) {
 export function verifyToken(token: string) {
   const payload = jwt.verify(token, env.JWT_SECRET);
 
-  if (typeof payload === 'string' || typeof payload.sub !== 'string') {
+  if (typeof payload === 'string' || (typeof payload.sub !== 'string' && typeof payload.sub !== 'number')) {
     throw new HttpError(401, 'Authentication required');
   }
 
