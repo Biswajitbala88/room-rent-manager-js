@@ -393,15 +393,53 @@ After that foundation is running, the tenant module should be built first becaus
 
 ## 9. Migration Progress
 
-### Completed initial foundation
+### Phase 0 — Project Bootstrap ✅
 
 - Created the `app/api`, `app/web`, and `app/shared` workspace structure.
-- Added Express + TypeScript API bootstrap with health, auth, profile, and dashboard placeholder routes.
-- Added Prisma schema for users, tenants, invoices, transactions, electricity units, and payment histories.
-- Added local SQLite environment, generated initial SQL migration, pushed schema, and seeded one `SA` plus one `A` user.
-- Added Vite + React + TypeScript app shell with login, protected routes, sidebar navigation, dashboard summary cards, and module placeholders.
-- Added build/typecheck scripts and local setup notes in `README.md`.
+- Added Express + TypeScript API bootstrap with health endpoint.
+- Added Vite + React + TypeScript app shell with login route.
+- Added shared linting, formatting, environment examples.
+- Defined Prisma schema for all tables.
+
+### Phase 1 — Database and Auth ✅
+
+- Implemented Prisma schema and initial SQL migration.
+- Seeded one `SA` user and one `A` user.
+- Implemented register/login/logout/me/profile APIs with JWT cookie auth.
+- Added React auth pages, protected routes, and sidebar layout.
+
+### Phase 2 — Tenant Module ✅
+
+- Implemented tenant CRUD API with owner scoping (`SA` sees all, `A` sees own).
+- Implemented room availability validation (no duplicate active rooms).
+- Implemented Aadhaar multi-image upload with Multer.
+- Built searchable, paginated tenant list UI with status badges and owner column.
+- Built tenant create/edit form with water-charge toggle, advanced-paid toggle, and Aadhaar preview.
+- Built transaction history modal.
+
+### Phase 3 — Invoice Module ✅
+
+- Implemented invoice CRUD API with electricity calculation, water charge, and closer flow.
+- Implemented last-units endpoint for previous meter reading lookup.
+- Implemented payment transaction creation on invoice create and delta transactions on edit.
+- Built searchable, paginated invoice list UI with consumed units, due/paid status badges, and PDF download.
+- Built invoice create/edit form with tenant auto-fill, live calculation, closer toggle, and exclude-from-dues toggle.
+
+### Phase 4 — Dashboard ✅
+
+- Implemented real dashboard summary API: pending count, due amount, received amount, electricity totals.
+- Implemented due-tenants and per-tenant due-invoices APIs.
+- Built dashboard UI with month filter picker, real summary cards, due-tenant selector, and inline payment flow.
+
+### Phase 5 — PDF and Electricity Report ✅
+
+- Implemented invoice PDF generation with PDFKit (`Invoice_{tenant_slug}_{month}.pdf`).
+- PDF includes tenant details, rent/electricity/water breakdown with `current - previous = used` format.
+- Implemented electricity report API with month/tenant filters, pagination, and summary totals.
+- Built electricity report UI with summary cards and paginated usage table.
+- Built profile page with name/email update, password change, and account deletion.
 
 ### Next
 
-- Build Phase 2 tenant CRUD with owner scoping, room availability validation, Aadhaar upload handling, and transaction history display.
+- Phase 6: Data migration — export existing Laravel data and import into the new system.
+- Phase 7: Hardening — API tests, frontend smoke tests, production build scripts, and deployment docs.

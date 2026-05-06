@@ -6,7 +6,7 @@ export function PlaceholderPage({ title }: { title: string }) {
         <p className="text-sm text-steel">This module is queued in the roadmap after the auth foundation.</p>
       </div>
       <section className="rounded-lg border border-slate-200 bg-white px-4 py-10 text-center text-sm text-steel">
-        The data model and routing foundation are in place. The next build step is tenant CRUD with owner scoping.
+        This placeholder is no longer used. All modules have been implemented.
       </section>
     </div>
   );

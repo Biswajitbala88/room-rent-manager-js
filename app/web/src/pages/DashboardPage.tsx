@@ -1,6 +1,8 @@
-import { useQuery } from '@tanstack/react-query';
-import { CalendarDays, IndianRupee, ReceiptText, Zap, type LucideIcon } from 'lucide-react';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { CalendarDays, IndianRupee, ReceiptText, Zap, FileDown, type LucideIcon } from 'lucide-react';
 import { apiFetch } from '../api/client';
+import { getDueTenants, getDueInvoices, addPayment, getInvoicePdfUrl, type DueTenant, type DueInvoice } from '../api/invoices';
 
 type DashboardSummary = {
   month: string;
@@ -13,11 +15,26 @@ type DashboardSummary = {
 };
 
 export function DashboardPage() {
-  const month = new Date().toISOString().slice(0, 7);
+  const queryClient = useQueryClient();
+  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null);
+
   const summaryQuery = useQuery({
     queryKey: ['dashboard', month],
     queryFn: () => apiFetch<DashboardSummary>(`/dashboard?month=${month}`),
   });
+
+  const dueTenants = useQuery({
+    queryKey: ['due-tenants'],
+    queryFn: getDueTenants,
+  });
+
+  const dueInvoices = useQuery({
+    queryKey: ['due-invoices', selectedTenantId],
+    queryFn: () => getDueInvoices(selectedTenantId!),
+    enabled: selectedTenantId !== null,
+  });
+
   const summary = summaryQuery.data;
 
   return (
@@ -27,9 +44,14 @@ export function DashboardPage() {
           <h1 className="text-2xl font-semibold text-ink">Dashboard</h1>
           <p className="text-sm text-steel">Month summary and due payment workflow.</p>
         </div>
-        <div className="inline-flex h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm text-steel">
-          <CalendarDays className="h-4 w-4" />
-          {month}
+        <div className="inline-flex h-10 items-center gap-2">
+          <CalendarDays className="h-4 w-4 text-steel" />
+          <input
+            type="month"
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+            className="h-10 rounded-md border border-slate-300 px-3 text-sm outline-none focus:border-mint"
+          />
         </div>
       </div>
 
@@ -40,14 +62,81 @@ export function DashboardPage() {
         <SummaryCard icon={Zap} label="Electricity cost" value={formatCurrency(summary?.electricityCost ?? 0)} />
       </div>
 
+      {/* Due payments section */}
       <section className="rounded-lg border border-slate-200 bg-white">
-        <div className="border-b border-slate-200 px-4 py-3">
-          <h2 className="font-semibold text-ink">Due payments</h2>
+        <div className="border-b border-slate-200 px-4 py-3 flex items-center justify-between">
+          <h2 className="font-semibold text-ink">Due Payments</h2>
+          <select
+            value={selectedTenantId ?? ''}
+            onChange={(e) => setSelectedTenantId(e.target.value ? Number(e.target.value) : null)}
+            className="h-9 rounded-md border border-slate-300 px-3 text-sm outline-none focus:border-mint"
+          >
+            <option value="">Select tenant with dues...</option>
+            {dueTenants.data?.data.map((t: DueTenant) => (
+              <option key={t.id} value={t.id}>
+                Room {t.roomNo} — {t.name} ({t.dueInvoiceCount} invoices, ₹{t.totalDue} due)
+              </option>
+            ))}
+          </select>
         </div>
-        <div className="px-4 py-10 text-center text-sm text-steel">
-          Tenant, invoice, and payment flows are next in the roadmap. The authenticated shell is ready for them.
-        </div>
+
+        {selectedTenantId && dueInvoices.data ? (
+          <div className="divide-y divide-slate-100">
+            {dueInvoices.data.data.length === 0 ? (
+              <p className="px-4 py-6 text-center text-sm text-steel">No due invoices for this tenant.</p>
+            ) : (
+              dueInvoices.data.data.map((inv: DueInvoice) => (
+                <DueInvoiceRow key={inv.id} invoice={inv} queryClient={queryClient} />
+              ))
+            )}
+          </div>
+        ) : (
+          <div className="px-4 py-10 text-center text-sm text-steel">
+            {dueTenants.data?.data.length === 0 ? 'No tenants with pending dues.' : 'Select a tenant to view and collect due payments.'}
+          </div>
+        )}
       </section>
+    </div>
+  );
+}
+
+function DueInvoiceRow({ invoice, queryClient }: { invoice: DueInvoice; queryClient: ReturnType<typeof useQueryClient> }) {
+  const [amount, setAmount] = useState(String(invoice.dueAmount));
+  const [mode, setMode] = useState('Cash');
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+
+  const paymentMutation = useMutation({
+    mutationFn: () => addPayment(invoice.id, { amount: Number(amount), paymentMode: mode, paymentDate: date }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['due-invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['due-tenants'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+
+  return (
+    <div className="flex flex-wrap items-center gap-3 px-4 py-3">
+      <div className="min-w-[120px]">
+        <p className="text-sm font-medium text-ink">{invoice.month}</p>
+        <p className="text-xs text-steel">Total: ₹{invoice.totalAmount} | Due: ₹{invoice.dueAmount}</p>
+      </div>
+      <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} min="0" className="h-9 w-24 rounded-md border border-slate-300 px-2 text-sm outline-none focus:border-mint" placeholder="Amount" />
+      <select value={mode} onChange={(e) => setMode(e.target.value)} className="h-9 rounded-md border border-slate-300 px-2 text-sm outline-none focus:border-mint">
+        <option>Cash</option>
+        <option>UPI</option>
+        <option>Bank Transfer</option>
+      </select>
+      <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-9 rounded-md border border-slate-300 px-2 text-sm outline-none focus:border-mint" />
+      <button
+        onClick={() => paymentMutation.mutate()}
+        disabled={paymentMutation.isPending || Number(amount) <= 0}
+        className="h-9 rounded-md bg-mint px-4 text-sm font-semibold text-white hover:bg-mint/90 disabled:opacity-50"
+      >
+        {paymentMutation.isPending ? '...' : 'Save'}
+      </button>
+      <a href={getInvoicePdfUrl(invoice.id)} target="_blank" rel="noreferrer" className="rounded p-1.5 text-steel hover:bg-slate-100 hover:text-ink">
+        <FileDown className="h-4 w-4" />
+      </a>
     </div>
   );
 }
