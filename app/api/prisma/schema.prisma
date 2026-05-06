@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              Int       @id @default(autoincrement())
+  name            String
+  email           String    @unique
+  passwordHash    String    @map("password_hash")
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  rememberToken   String?   @map("remember_token")
+  userType        String    @default("A") @map("user_type")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  tenants Tenant[] @relation("OwnerTenants")
+
+  @@map("users")
+}
+
+model Tenant {
+  id             Int       @id @default(autoincrement())
+  parentId       Int?      @map("parent_id")
+  name           String
+  phone          String
+  roomNo         String    @map("room_no")
+  startDate      DateTime  @map("start_date")
+  rentAmount     Decimal   @map("rent_amount")
+  aadhaarImage   String?   @map("aadhaar_image")
+  status         String    @default("active")
+  isWaterCharge  Boolean   @default(false) @map("is_water_charge")
+  waterCharge    Decimal   @default(0) @map("water_charge")
+  isAdvanced     Boolean   @default(false) @map("is_advanced")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  owner        User?         @relation("OwnerTenants", fields: [parentId], references: [id])
+  invoices     Invoice[]
+  transactions Transaction[]
+
+  @@index([parentId])
+  @@index([roomNo, status])
+  @@map("tenants")
+}
+
+model Invoice {
+  id               Int       @id @default(autoincrement())
+  roomNo           String?   @map("room_no")
+  tenantId         Int       @map("tenant_id")
+  month            String
+  electricityUnits Decimal   @default(0) @map("electricity_units")
+  electricityCharge Decimal  @default(0) @map("electricity_charge")
+  waterCharge      Decimal   @default(0) @map("water_charge")
+  totalAmount      Decimal   @default(0) @map("total_amount")
+  receivedAmount   Decimal   @default(0) @map("received_amount")
+  isExcluded       Boolean   @default(false) @map("is_excluded")
+  status           String    @default("unpaid")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  tenant             Tenant             @relation(fields: [tenantId], references: [id])
+  transactions       Transaction[]
+  electricityUnitRows ElectricityUnit[]
+  paymentHistories   PaymentHistory[]
+
+  @@index([tenantId, month])
+  @@map("invoices")
+}
+
+model Transaction {
+  id          Int      @id @default(autoincrement())
+  tenantId    Int      @map("tenant_id")
+  invoiceId   Int?     @map("invoice_id")
+  amount      Decimal
+  paymentMode String   @map("payment_mode")
+  paymentDate DateTime @map("payment_date")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id])
+  invoice Invoice? @relation(fields: [invoiceId], references: [id])
+
+  @@index([tenantId])
+  @@index([invoiceId])
+  @@map("transactions")
+}
+
+model ElectricityUnit {
+  id        Int      @id @default(autoincrement())
+  invoiceId Int      @map("invoice_id")
+  unit      Decimal
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+
+  @@map("electricity_units")
+}
+
+model PaymentHistory {
+  id             Int      @id @default(autoincrement())
+  invoiceId      Int      @map("invoice_id")
+  receivedAmount Decimal  @map("received_amount")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+
+  @@map("payment_histories")
+}

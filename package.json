@@ -1,0 +1,23 @@
+{
+  "name": "room-rent-manager-node-react",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "app/api",
+    "app/web",
+    "app/shared"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev -w @room-rent/api",
+    "dev:web": "npm run dev -w @room-rent/web",
+    "build": "npm run build -w @room-rent/shared && npm run build -w @room-rent/api && npm run build -w @room-rent/web",
+    "typecheck": "npm run typecheck -w @room-rent/api && npm run typecheck -w @room-rent/web",
+    "prisma:generate": "npm run prisma:generate -w @room-rent/api",
+    "prisma:migrate": "npm run prisma:migrate -w @room-rent/api",
+    "seed": "npm run seed -w @room-rent/api"
+  },
+  "devDependencies": {
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.3"
+  }
+}
